@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../home/home_screen.dart';
 import '../inventory/inventory_screen.dart';
+import '../trends/trends_screen.dart';
 
-/// The two rooms of the notebook: the cartridges (with everything
-/// under them) and the component shelf. Phase E adds Trends.
+/// The rooms of the notebook: the cartridges (with everything under
+/// them), the component shelf, and the long view.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -20,7 +21,7 @@ class _HomeShellState extends State<HomeShell> {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const [HomeScreen(), InventoryScreen()],
+        children: const [HomeScreen(), InventoryScreen(), TrendsScreen()],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
@@ -30,6 +31,8 @@ class _HomeShellState extends State<HomeShell> {
               icon: Icon(Icons.menu_book_outlined), label: 'Notebook'),
           NavigationDestination(
               icon: Icon(Icons.inventory_2_outlined), label: 'Inventory'),
+          NavigationDestination(
+              icon: Icon(Icons.insights_outlined), label: 'Trends'),
         ],
       ),
     );

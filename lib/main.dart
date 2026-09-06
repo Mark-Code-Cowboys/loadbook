@@ -27,6 +27,8 @@ Future<void> main() async {
             .overrideWithValue(MlKitDocumentScanService()),
         textRecognitionServiceProvider
             .overrideWithValue(MlKitTextRecognitionService()),
+        shareLauncherProvider.overrideWithValue(SharePlusLauncher()),
+        tempDirProvider.overrideWithValue(getTemporaryDirectory),
       ],
       child: const LoadbookApp(),
     ),

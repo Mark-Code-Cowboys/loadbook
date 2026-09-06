@@ -1,3 +1,4 @@
+import 'package:cc_core/cc_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +7,7 @@ import '../../data/database/app_database.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/load_repository.dart';
 import '../../data/repositories/range_session_repository.dart';
+import '../monetization/monetization_providers.dart';
 import '../sessions/session_composer_screen.dart';
 
 final _loadProvider = StreamProvider.autoDispose
@@ -61,6 +63,8 @@ class LoadDetailScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
               child: Text(item.notes!, style: theme.textTheme.bodyMedium),
             ),
+          if (ref.watch(isProProvider).value ?? false)
+            _LoadTrends(sessions: sessions),
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 24, 4, 4),
             child: Text('Range sessions',
@@ -176,6 +180,53 @@ class _RecipeCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Per-load trends (Pro): group size over sessions and the chrono SD
+/// line — the user's own measurements over time, nothing judged.
+class _LoadTrends extends StatelessWidget {
+  const _LoadTrends({required this.sessions});
+
+  final List<SessionWithStory> sessions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Oldest first for the time axis (the list renders newest first).
+    final ordered = sessions.reversed.toList();
+    final groups = <(DateTime, num)>[
+      for (final s in ordered)
+        if (s.session.groupSizeIn != null)
+          (s.session.date, s.session.groupSizeIn!),
+    ];
+    final sds = <(DateTime, num)>[
+      for (final s in ordered)
+        if (s.session.chronoSdFps != null)
+          (s.session.date, s.session.chronoSdFps!),
+    ];
+    if (groups.length < 2 && sds.length < 2) {
+      return const SizedBox.shrink();
+    }
+    Widget section(String title, List<(DateTime, num)> points) => Padding(
+          padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              SimpleLineChart(points: points, height: 96),
+            ],
+          ),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (groups.length >= 2)
+          section('Group size over sessions (in)', groups),
+        if (sds.length >= 2) section('Chrono SD over sessions', sds),
+      ],
     );
   }
 }
