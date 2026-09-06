@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import '../../data/repositories/range_session_repository.dart';
 import '../monetization/monetization_providers.dart';
 import '../monetization/paywall_sheet.dart';
+import 'target_measure_screen.dart';
 
 /// Logs one range trip. Every measurement is the user's own; the only
 /// computation is MOA from their distance and group, shown live as
@@ -83,6 +84,31 @@ class _SessionComposerScreenState
     if (source == null) return;
     final path = await ref.read(photoServiceProvider).acquire(source);
     if (path != null) setState(() => _photos.add(path));
+  }
+
+  /// Opens the manual measure screen over the newest target photo and
+  /// fills the group field with what the user measured.
+  Future<void> _measureFromPhoto() async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (int.tryParse(_distance.text.trim()) == null) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Enter the distance first — MOA needs it.')));
+      return;
+    }
+    if (_photos.isEmpty) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Add a target photo first.')));
+      return;
+    }
+    final file = ref.read(photoServiceProvider).fileFor(_photos.last);
+    final measured = await measureTargetPhoto(
+      context,
+      image: FileImage(file),
+      distanceYd: int.parse(_distance.text.trim()),
+    );
+    if (measured != null && mounted) {
+      setState(() => _group.text = formatDecimal(measured));
+    }
   }
 
   Future<void> _save() async {
@@ -189,6 +215,11 @@ class _SessionComposerScreenState
                   ? null
                   : '${_liveMoa!.toStringAsFixed(2)} MOA at '
                       '${_distance.text.trim()} yd',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.straighten),
+                tooltip: 'Measure from target photo',
+                onPressed: _measureFromPhoto,
+              ),
             ),
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
