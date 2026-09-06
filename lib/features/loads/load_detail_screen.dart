@@ -153,7 +153,9 @@ class _RecipeCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
-                      width: 88,
+                      // 110 keeps "Developed" on one line at the
+                      // larger device font scales (Pixel pass finding).
+                      width: 110,
                       child: Text(label,
                           style: theme.textTheme.labelLarge?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant)),
