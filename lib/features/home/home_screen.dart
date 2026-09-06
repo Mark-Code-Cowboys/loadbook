@@ -6,6 +6,8 @@ import '../../data/providers.dart';
 import '../../data/repositories/cartridge_repository.dart';
 import '../cartridges/cartridge_detail_screen.dart';
 import '../monetization/free_limit.dart';
+import '../monetization/monetization_providers.dart';
+import '../monetization/paywall_sheet.dart';
 
 /// The front page's live list: chapters with their load counts.
 final cartridgeListProvider =
@@ -19,12 +21,12 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = ref.watch(cartridgeListProvider).value ?? const [];
-    final count = ref.watch(cartridgeCountProvider).value ?? 0;
+    final usage = ref.watch(freeTierUsageProvider);
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Loadbook')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _addCartridge(context, ref, count),
+        onPressed: () => _addCartridge(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('Add cartridge'),
       ),
@@ -56,12 +58,13 @@ class HomeScreen extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.only(bottom: 88),
               children: [
-                // Phase C hides this for Pro owners (usage null there).
-                FreeTierCounter(
-                  usage: cartridgesLimit.usage(count),
-                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  onGoPro: () => showPaywallSheet(context),
-                ),
+                // Invisible for Pro owners (usage is null there).
+                if (usage != null)
+                  FreeTierCounter(
+                    usage: usage,
+                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    onGoPro: () => showPaywallSheet(context),
+                  ),
                 for (final item in items)
                   ListTile(
                     leading: CircleAvatar(
@@ -88,13 +91,20 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _addCartridge(
-      BuildContext context, WidgetRef ref, int count) async {
+  /// Past the free two (lifetime starts — deleting a page doesn't
+  /// refund the slot) the paywall opens instead; unlocking mid-flow
+  /// continues to the dialog.
+  Future<void> _addCartridge(BuildContext context, WidgetRef ref) async {
+    final entitled =
+        await ref.read(entitlementServiceProvider).isUnlimited();
+    final used =
+        await ref.read(cartridgeRepositoryProvider).lifetimeCreated();
+    if (!context.mounted) return;
     try {
-      cartridgesLimit.guard(used: count, entitled: false);
+      cartridgesLimit.guard(used: used, entitled: entitled);
     } on FreeLimitReachedException {
-      await showPaywallSheet(context);
-      return;
+      final unlocked = await showPaywallSheet(context);
+      if (!unlocked) return;
     }
     if (!context.mounted) return;
     final draft = await showDialog<({String name, String? notes})>(

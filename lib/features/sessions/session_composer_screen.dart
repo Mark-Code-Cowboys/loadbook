@@ -6,6 +6,8 @@ import '../../core/utils/format.dart';
 import '../../core/utils/moa.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/range_session_repository.dart';
+import '../monetization/monetization_providers.dart';
+import '../monetization/paywall_sheet.dart';
 
 /// Logs one range trip. Every measurement is the user's own; the only
 /// computation is MOA from their distance and group, shown live as
@@ -108,8 +110,21 @@ class _SessionComposerScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final photoService = ref.watch(photoServiceProvider);
+    final pro = ref.watch(isProProvider).value ?? false;
     InputDecoration deco(String label, [String? suffix]) =>
         InputDecoration(labelText: label, suffixText: suffix);
+    // Visible but paid (prompt on tap): the fields sit where they
+    // belong so free users see what Pro records here.
+    Widget chronoField(TextEditingController controller, String label,
+            [String? suffix]) =>
+        TextField(
+          controller: controller,
+          decoration: deco(label, suffix),
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
+          readOnly: !pro,
+          onTap: pro ? null : () => showPaywallSheet(context),
+        );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Log session'),
@@ -180,36 +195,28 @@ class _SessionComposerScreenState
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 20),
-          Text('Chronograph', style: theme.textTheme.titleSmall),
+          Row(
+            children: [
+              Text('Chronograph', style: theme.textTheme.titleSmall),
+              if (!pro) ...[
+                const SizedBox(width: 8),
+                Icon(Icons.workspace_premium_outlined,
+                    size: 16, color: theme.colorScheme.primary),
+                const SizedBox(width: 4),
+                Text('Pro',
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: theme.colorScheme.primary)),
+              ],
+            ],
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _chronoAvg,
-                  decoration: deco('Avg', 'fps'),
-                  keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
-                ),
-              ),
+              Expanded(child: chronoField(_chronoAvg, 'Avg', 'fps')),
               const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _chronoSd,
-                  decoration: deco('SD'),
-                  keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
-                ),
-              ),
+              Expanded(child: chronoField(_chronoSd, 'SD')),
               const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _chronoEs,
-                  decoration: deco('ES'),
-                  keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
-                ),
-              ),
+              Expanded(child: chronoField(_chronoEs, 'ES')),
             ],
           ),
           const SizedBox(height: 12),

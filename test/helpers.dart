@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:loadbook/core/theme/app_theme.dart';
 import 'package:loadbook/data/database/app_database.dart';
 import 'package:loadbook/data/providers.dart';
+import 'package:loadbook/features/monetization/monetization_providers.dart';
 
 AppDatabase makeTestDb() => AppDatabase(NativeDatabase.memory());
 
@@ -36,13 +37,15 @@ class FakeAppPhotoService implements PhotoService {
   }
 }
 
-/// The app wired to an in-memory database and fake services.
-/// PHASE C adds the entitlement override here (see Hitch Post's
-/// helpers for the full shape).
+/// The app wired to an in-memory database and fake services. The
+/// entitlement service is always faked — the real one talks to the
+/// store plugin, which doesn't exist in the test zone.
 Widget testApp({
   required AppDatabase db,
   required Widget home,
   KeyValueStore? kvStore,
+  bool entitled = false,
+  EntitlementService? entitlements,
   List<Override> overrides = const [],
 }) =>
     ProviderScope(
@@ -50,6 +53,8 @@ Widget testApp({
         databaseProvider.overrideWithValue(db),
         photoServiceProvider.overrideWithValue(FakeAppPhotoService()),
         kvStoreProvider.overrideWithValue(kvStore ?? InMemoryKeyValueStore()),
+        entitlementServiceProvider.overrideWithValue(
+            entitlements ?? FakeEntitlementService(unlimited: entitled)),
         ...overrides,
       ],
       child: MaterialApp(theme: AppTheme.light(), home: home),

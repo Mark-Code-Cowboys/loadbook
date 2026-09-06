@@ -30,9 +30,20 @@ final journalRepositoryProvider = Provider<AppJournalRepository>(
       .journal(photoStore: ref.watch(photoServiceProvider)),
 );
 
+/// Storage key for the lifetime cartridge tally — stable forever; a
+/// backup's figure restores against the same key.
+const kCartridgeTallyKey = 'cartridges_created_lifetime';
+
+/// The free tier's memory: cartridges ever started, never decremented.
+final cartridgeTallyProvider = Provider<LifetimeTally>(
+  (ref) =>
+      LifetimeTally(ref.watch(kvStoreProvider), key: kCartridgeTallyKey),
+);
+
 final cartridgeRepositoryProvider = Provider<CartridgeRepository>(
   (ref) => CartridgeRepository(ref.watch(databaseProvider),
-      journal: ref.watch(journalRepositoryProvider)),
+      journal: ref.watch(journalRepositoryProvider),
+      tally: ref.watch(cartridgeTallyProvider)),
 );
 
 final componentRepositoryProvider = Provider<ComponentRepository>(

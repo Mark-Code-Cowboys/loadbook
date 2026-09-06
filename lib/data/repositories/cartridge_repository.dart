@@ -1,4 +1,8 @@
+import 'dart:math';
+
+import 'package:cc_core/cc_core.dart';
 import 'package:drift/drift.dart';
+import 'package:stream_transform/stream_transform.dart';
 
 import '../database/app_database.dart';
 
@@ -12,13 +16,40 @@ class CartridgeListItem {
 
 /// Cartridges — the notebook's chapters and the free-tier unit.
 class CartridgeRepository {
-  CartridgeRepository(this._db, {AppJournalRepository? journal})
-      : _journalOverride = journal; // ignore: prefer_initializing_formals
+  CartridgeRepository(this._db,
+      {AppJournalRepository? journal, LifetimeTally? tally})
+      // ignore: prefer_initializing_formals
+      : _journalOverride = journal,
+        _tally = tally; // ignore: prefer_initializing_formals
 
   final AppDatabase _db;
   final AppJournalRepository? _journalOverride;
+  final LifetimeTally? _tally;
   late final AppJournalRepository _journal =
       _journalOverride ?? _db.journal();
+
+  /// Live row count.
+  Future<int> count() async {
+    final countExp = _db.cartridges.id.count();
+    final query = _db.selectOnly(_db.cartridges)..addColumns([countExp]);
+    return (await query.getSingle()).read(countExp)!;
+  }
+
+  /// Cartridges ever started on this device: the tally, but never
+  /// below the live row count (pre-tally installs, backup restores).
+  Future<int> lifetimeCreated() async {
+    final live = await count();
+    final tallied = await _tally?.value() ?? 0;
+    return max(live, tallied);
+  }
+
+  /// Live [lifetimeCreated], ticking on creates and on row changes.
+  Stream<int> watchLifetimeCreated() {
+    final live =
+        _db.select(_db.cartridges).watch().map((rows) => rows.length);
+    final tallied = _tally?.watch() ?? Stream.value(0);
+    return live.combineLatest(tallied, (int a, int b) => max(a, b));
+  }
 
   /// All cartridges, oldest first (the order the notebook grew).
   Stream<List<Cartridge>> watchAll() {
@@ -52,10 +83,14 @@ class CartridgeRepository {
       (_db.select(_db.cartridges)..where((c) => c.id.equals(id)))
           .getSingleOrNull();
 
-  /// Adds a chapter; [name] is whatever the user wrote.
-  Future<int> create({required String name, String? notes}) =>
-      _db.into(_db.cartridges).insert(CartridgesCompanion.insert(
-          name: name, notes: Value(notes)));
+  /// Adds a chapter; [name] is whatever the user wrote. Spends a
+  /// free-tier slot (the tally never goes back down).
+  Future<int> create({required String name, String? notes}) async {
+    final id = await _db.into(_db.cartridges).insert(
+        CartridgesCompanion.insert(name: name, notes: Value(notes)));
+    await _tally?.recordCreated(liveCount: await count());
+    return id;
+  }
 
   Future<void> rename(int id, {required String name, String? notes}) =>
       (_db.update(_db.cartridges)..where((c) => c.id.equals(id))).write(
