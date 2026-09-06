@@ -8,6 +8,7 @@ import '../cartridges/cartridge_detail_screen.dart';
 import '../monetization/free_limit.dart';
 import '../monetization/monetization_providers.dart';
 import '../monetization/paywall_sheet.dart';
+import '../scan_import/notebook_flow.dart';
 
 /// The front page's live list: chapters with their load counts.
 final cartridgeListProvider =
@@ -24,7 +25,16 @@ class HomeScreen extends ConsumerWidget {
     final usage = ref.watch(freeTierUsageProvider);
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Loadbook')),
+      appBar: AppBar(
+        title: const Text('Loadbook'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.document_scanner_outlined),
+            tooltip: 'Import your notebook',
+            onPressed: () => runNotebookImport(context, ref),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _addCartridge(context, ref),
         icon: const Icon(Icons.add),
