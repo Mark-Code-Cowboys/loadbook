@@ -2,6 +2,14 @@ import 'package:drift/drift.dart';
 
 import '../database/app_database.dart';
 
+/// A cartridge with how many loads its chapter holds.
+class CartridgeListItem {
+  const CartridgeListItem(this.cartridge, this.loadCount);
+
+  final Cartridge cartridge;
+  final int loadCount;
+}
+
 /// Cartridges — the notebook's chapters and the free-tier unit.
 class CartridgeRepository {
   CartridgeRepository(this._db, {AppJournalRepository? journal})
@@ -17,6 +25,27 @@ class CartridgeRepository {
     final query = _db.select(_db.cartridges)
       ..orderBy([(c) => OrderingTerm.asc(c.createdAt), (c) => OrderingTerm.asc(c.id)]);
     return query.watch();
+  }
+
+  /// The home list: every chapter with its load count. One watch over
+  /// a grouped join so counts stay live as loads come and go.
+  Stream<List<CartridgeListItem>> watchAllWithLoadCounts() {
+    final countExp = _db.loads.id.count();
+    final query = _db.select(_db.cartridges).join([
+      leftOuterJoin(
+          _db.loads, _db.loads.cartridgeId.equalsExp(_db.cartridges.id)),
+    ])
+      ..addColumns([countExp])
+      ..groupBy([_db.cartridges.id])
+      ..orderBy([
+        OrderingTerm.asc(_db.cartridges.createdAt),
+        OrderingTerm.asc(_db.cartridges.id),
+      ]);
+    return query.watch().map((rows) => [
+          for (final row in rows)
+            CartridgeListItem(
+                row.readTable(_db.cartridges), row.read(countExp) ?? 0),
+        ]);
   }
 
   Future<Cartridge?> getById(int id) =>

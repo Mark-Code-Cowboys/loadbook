@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:loadbook/app.dart';
@@ -6,28 +7,32 @@ import 'helpers.dart';
 
 void main() {
   testWidgets(
-      'scaffold boots: onboarding -> home, and the free-tier gate '
-      'fires at the cap', (tester) async {
+      'boots onboarding -> shell, adds a cartridge, and gates at two',
+      (tester) async {
     final db = makeTestDb();
     await tester.pumpWidget(testApp(db: db, home: const AppRoot()));
     await tester.pumpAndSettle();
 
-    // First run lands on onboarding with the privacy promise.
-    expect(find.textContaining('scaffold is alive'), findsOneWidget);
+    // First run lands on onboarding (placeholder copy until Phase F).
     await tester.tap(find.text('Just look around'));
     await tester.pumpAndSettle();
 
-    // The shell, with the placeholder empty state.
-    expect(find.text('Loadbook'), findsOneWidget);
+    // The notebook's empty front page.
+    expect(find.text('Your reloading notebook.'), findsOneWidget);
 
-    for (var i = 0; i < 5; i++) {
-      await tester.tap(find.text('Add entry'));
-      await tester.pump();
+    for (final name in ['.308 Test', '6.5 Test']) {
+      await tester.tap(find.text('Add cartridge'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Cartridge'), name);
+      await tester.tap(find.text('Add'));
+      await tester.pumpAndSettle();
+      expect(find.text(name), findsOneWidget);
     }
-    expect(find.text('5 of 5 free entries used'), findsOneWidget);
+    expect(find.text('2 of 2 free cartridges used'), findsOneWidget);
 
-    // The sixth add hits the gate and opens the paywall stub.
-    await tester.tap(find.text('Add entry'));
+    // The third add hits the gate and opens the paywall stub.
+    await tester.tap(find.text('Add cartridge'));
     await tester.pumpAndSettle();
     expect(find.text('Loadbook Pro'), findsOneWidget);
 
