@@ -2,6 +2,11 @@ import 'package:cc_core/cc_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'database/app_database.dart';
+import 'repositories/cartridge_repository.dart';
+import 'repositories/component_repository.dart';
+import 'repositories/inventory_repository.dart';
+import 'repositories/load_repository.dart';
+import 'repositories/range_session_repository.dart';
 
 /// Overridden in main() with the real on-device database, and in tests
 /// with an in-memory one.
@@ -23,4 +28,27 @@ final journalRepositoryProvider = Provider<AppJournalRepository>(
   (ref) => ref
       .watch(databaseProvider)
       .journal(photoStore: ref.watch(photoServiceProvider)),
+);
+
+final cartridgeRepositoryProvider = Provider<CartridgeRepository>(
+  (ref) => CartridgeRepository(ref.watch(databaseProvider),
+      journal: ref.watch(journalRepositoryProvider)),
+);
+
+final componentRepositoryProvider = Provider<ComponentRepository>(
+  (ref) => ComponentRepository(ref.watch(databaseProvider)),
+);
+
+final loadRepositoryProvider = Provider<LoadRepository>(
+  (ref) => LoadRepository(ref.watch(databaseProvider),
+      journal: ref.watch(journalRepositoryProvider)),
+);
+
+final rangeSessionRepositoryProvider = Provider<RangeSessionRepository>(
+  (ref) => RangeSessionRepository(ref.watch(databaseProvider),
+      journal: ref.watch(journalRepositoryProvider)),
+);
+
+final inventoryRepositoryProvider = Provider<InventoryRepository>(
+  (ref) => InventoryRepository(ref.watch(databaseProvider)),
 );
